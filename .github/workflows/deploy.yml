@@ -42,7 +42,7 @@ jobs:
         run: pnpm build
         working-directory: artifacts/cv-site
         env:
-          VITE_BASE_PATH: /
+          VITE_BASE_PATH: /Personal-Site-Builder
 
       # Copy index.html as 404.html so that deep links work after a page refresh.
       - name: Fix SPA routing
