@@ -1,57 +1,22 @@
-// THIS IS THE SINGLE FILE USERS EDIT
-// Everything on the site comes from here as a fallback if the API is not available or empty.
-
-export const profile = {
-  name: "Your Name",
-  title: "Developer / Researcher / Thinker",
-  bio: "Welcome to my homepage. I am a developer based in [city]. I spend my time thinking about software, writing, and how technology shapes our lives.",
-  location: "[City, Country]",
-  email: "you@example.com",
-  phone: "",
-  linkedinUrl: "",
-  githubUrl: "",
-  websiteUrl: "",
-  avatarUrl: "",
-};
-
-export const experience = [
-  {
-    company: "Example Corp",
-    companyUrl: "https://example.com",
-    role: "Senior Engineer",
-    startDate: "2021-01",
-    endDate: null,
-    description: "Building products that matter.",
-    displayOrder: 0,
-  },
-];
-
-export const education = [
-  {
-    institution: "University of Example",
-    degree: "B.Sc. Computer Science",
-    startDate: "2014-09",
-    endDate: "2018-06",
-    description: "",
-    displayOrder: 0,
-  },
-];
-
-export const projects = [
-  {
-    name: "Minimalist Writer",
-    description: "A distraction-free writing environment built on raw web technologies.",
-    url: "",
-    tags: ["open-source", "tools"],
-    displayOrder: 0,
-  },
-];
+// ============================================================
+// EDIT YOUR ARTICLES / BLOG POSTS HERE
+// ============================================================
+// Articles are shown in reverse-chronological order on the Blog page.
+// The 8 most recent published articles also appear on the homepage.
+//
+// ADDING A NEW ARTICLE:
+//   1. Copy one of the blocks below.
+//   2. Give it a unique `slug` (URL-safe, e.g. "my-new-post").
+//   3. Set `published: true` when ready to go live (false = draft, not shown).
+//   4. Write the article content in Markdown inside the `content` field.
+//      You can use headings (##), bold (**text**), links ([text](url)), etc.
 
 export const articles = [
   {
     slug: "on-building-things-that-last",
     title: "On Building Things That Last",
     subtitle: "Why craftsmanship still matters in the age of AI",
+    // Format: "YYYY-MM-DD"
     publishedDate: "2024-03-15",
     published: true,
     content: `## On Building Things That Last
@@ -83,6 +48,7 @@ The goal is not to write code that impresses other developers. The goal is to wr
 
 That is what lasts.`,
   },
+
   {
     slug: "the-case-for-plain-text",
     title: "The Case for Plain Text",
@@ -116,6 +82,7 @@ The question to ask before adding complexity is not "does this make things bette
 
 This is not dogma. Databases exist for good reasons. But the default should be plain text, and the burden of proof should be on the complexity.`,
   },
+
   {
     slug: "why-i-write-online",
     title: "Why I Write Online",
@@ -144,4 +111,20 @@ The posts that have taken me longest to write are almost always the ones where I
 
 I do not write to build an audience. I write because the thinking is useful to me, and because occasionally someone finds it useful too. That ordering matters — if I wrote primarily to be read, I would write differently, and probably worse.`,
   },
+
+  // To add a new article, copy the block below and fill it in:
+  // {
+  //   slug: "my-new-article",            // URL: /blog/my-new-article
+  //   title: "My New Article",
+  //   subtitle: "A subtitle for the article",
+  //   publishedDate: "2025-01-01",
+  //   published: true,                    // set to false to keep as draft
+  //   content: `## My New Article
+  //
+  // Write your article here in Markdown...
+  //
+  // ### A Heading
+  //
+  // More content.`,
+  // },
 ];

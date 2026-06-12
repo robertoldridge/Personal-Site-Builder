@@ -1,0 +1,63 @@
+# Automatically builds and deploys the site to GitHub Pages on every push to main.
+# Setup: go to Settings > Pages and set Source to "GitHub Actions".
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: artifacts/cv-site
+
+      - name: Build
+        # If your repo is at username.github.io (root domain), remove the VITE_BASE_PATH line.
+        # If your repo is at username.github.io/REPO_NAME, set VITE_BASE_PATH=/REPO_NAME
+        run: pnpm build
+        working-directory: artifacts/cv-site
+        env:
+          VITE_BASE_PATH: /
+
+      # Copy index.html as 404.html so that deep links work after a page refresh.
+      - name: Fix SPA routing
+        run: cp artifacts/cv-site/dist/index.html artifacts/cv-site/dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifacts/cv-site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
