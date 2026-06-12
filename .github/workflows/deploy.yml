@@ -33,8 +33,9 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: artifacts/cv-site
+        # Install from the workspace root (where pnpm-lock.yaml lives).
+        # --no-frozen-lockfile lets pnpm reconcile the lockfile with package.json.
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build
         # If your repo is at username.github.io (root domain), remove the VITE_BASE_PATH line.
