@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AuthResult {
-  ok: boolean;
-  reason?: string;
-  totpEnabled?: boolean;
+export interface TotpSetup {
+  qrDataUrl: string;
+  secret: string;
+  alreadyConfirmed: boolean;
 }

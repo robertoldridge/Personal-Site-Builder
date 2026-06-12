@@ -21,6 +21,7 @@ import type {
 
 import type {
   AdminCredentials,
+  AdminVerify,
   ArticleData,
   ArticleInput,
   AuthResult,
@@ -33,7 +34,10 @@ import type {
   ProfileData,
   ProfileInput,
   ProjectData,
-  ProjectInput
+  ProjectInput,
+  TotpConfirm,
+  TotpSetup,
+  TotpStatus
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -125,20 +129,97 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
-export const getVerifyAdminUrl = () => {
+export const getGetTotpStatusUrl = () => {
 
 
 
 
-  return `/api/auth/verify`
+  return `/api/auth/totp-status`
 }
 
 /**
- * @summary Verify admin password
+ * @summary Check if TOTP 2FA is configured
  */
-export const verifyAdmin = async (adminCredentials: AdminCredentials, options?: RequestInit): Promise<AuthResult> => {
+export const getTotpStatus = async ( options?: RequestInit): Promise<TotpStatus> => {
 
-  return customFetch<AuthResult>(getVerifyAdminUrl(),
+  return customFetch<TotpStatus>(getGetTotpStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTotpStatusQueryKey = () => {
+    return [
+    `/api/auth/totp-status`
+    ] as const;
+    }
+
+
+export const getGetTotpStatusQueryOptions = <TData = Awaited<ReturnType<typeof getTotpStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTotpStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTotpStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTotpStatus>>> = ({ signal }) => getTotpStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTotpStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTotpStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getTotpStatus>>>
+export type GetTotpStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check if TOTP 2FA is configured
+ */
+
+export function useGetTotpStatus<TData = Awaited<ReturnType<typeof getTotpStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTotpStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTotpStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetupTotpUrl = () => {
+
+
+
+
+  return `/api/auth/setup-totp`
+}
+
+/**
+ * @summary Generate TOTP secret and QR code
+ */
+export const setupTotp = async (adminCredentials: AdminCredentials, options?: RequestInit): Promise<TotpSetup> => {
+
+  return customFetch<TotpSetup>(getSetupTotpUrl(),
   {
     ...options,
     method: 'POST',
@@ -151,9 +232,222 @@ export const verifyAdmin = async (adminCredentials: AdminCredentials, options?: 
 
 
 
+export const getSetupTotpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupTotp>>, TError,{data: BodyType<AdminCredentials>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setupTotp>>, TError,{data: BodyType<AdminCredentials>}, TContext> => {
+
+const mutationKey = ['setupTotp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setupTotp>>, {data: BodyType<AdminCredentials>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setupTotp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetupTotpMutationResult = NonNullable<Awaited<ReturnType<typeof setupTotp>>>
+    export type SetupTotpMutationBody = BodyType<AdminCredentials>
+    export type SetupTotpMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate TOTP secret and QR code
+ */
+export const useSetupTotp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupTotp>>, TError,{data: BodyType<AdminCredentials>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setupTotp>>,
+        TError,
+        {data: BodyType<AdminCredentials>},
+        TContext
+      > => {
+      return useMutation(getSetupTotpMutationOptions(options));
+    }
+
+export const getConfirmTotpUrl = () => {
+
+
+
+
+  return `/api/auth/confirm-totp`
+}
+
+/**
+ * @summary Confirm TOTP setup with a valid code
+ */
+export const confirmTotp = async (totpConfirm: TotpConfirm, options?: RequestInit): Promise<AuthResult> => {
+
+  return customFetch<AuthResult>(getConfirmTotpUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      totpConfirm,)
+  }
+);}
+
+
+
+
+export const getConfirmTotpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmTotp>>, TError,{data: BodyType<TotpConfirm>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmTotp>>, TError,{data: BodyType<TotpConfirm>}, TContext> => {
+
+const mutationKey = ['confirmTotp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmTotp>>, {data: BodyType<TotpConfirm>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  confirmTotp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmTotpMutationResult = NonNullable<Awaited<ReturnType<typeof confirmTotp>>>
+    export type ConfirmTotpMutationBody = BodyType<TotpConfirm>
+    export type ConfirmTotpMutationError = ErrorType<void>
+
+    /**
+ * @summary Confirm TOTP setup with a valid code
+ */
+export const useConfirmTotp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmTotp>>, TError,{data: BodyType<TotpConfirm>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmTotp>>,
+        TError,
+        {data: BodyType<TotpConfirm>},
+        TContext
+      > => {
+      return useMutation(getConfirmTotpMutationOptions(options));
+    }
+
+export const getResetTotpUrl = () => {
+
+
+
+
+  return `/api/auth/reset-totp`
+}
+
+/**
+ * @summary Reset TOTP (requires password)
+ */
+export const resetTotp = async (adminCredentials: AdminCredentials, options?: RequestInit): Promise<AuthResult> => {
+
+  return customFetch<AuthResult>(getResetTotpUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminCredentials,)
+  }
+);}
+
+
+
+
+export const getResetTotpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTotp>>, TError,{data: BodyType<AdminCredentials>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetTotp>>, TError,{data: BodyType<AdminCredentials>}, TContext> => {
+
+const mutationKey = ['resetTotp'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetTotp>>, {data: BodyType<AdminCredentials>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  resetTotp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetTotpMutationResult = NonNullable<Awaited<ReturnType<typeof resetTotp>>>
+    export type ResetTotpMutationBody = BodyType<AdminCredentials>
+    export type ResetTotpMutationError = ErrorType<void>
+
+    /**
+ * @summary Reset TOTP (requires password)
+ */
+export const useResetTotp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetTotp>>, TError,{data: BodyType<AdminCredentials>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetTotp>>,
+        TError,
+        {data: BodyType<AdminCredentials>},
+        TContext
+      > => {
+      return useMutation(getResetTotpMutationOptions(options));
+    }
+
+export const getVerifyAdminUrl = () => {
+
+
+
+
+  return `/api/auth/verify`
+}
+
+/**
+ * @summary Verify admin password and optional TOTP code
+ */
+export const verifyAdmin = async (adminVerify: AdminVerify, options?: RequestInit): Promise<AuthResult> => {
+
+  return customFetch<AuthResult>(getVerifyAdminUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminVerify,)
+  }
+);}
+
+
+
+
 export const getVerifyAdminMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdmin>>, TError,{data: BodyType<AdminCredentials>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof verifyAdmin>>, TError,{data: BodyType<AdminCredentials>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdmin>>, TError,{data: BodyType<AdminVerify>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyAdmin>>, TError,{data: BodyType<AdminVerify>}, TContext> => {
 
 const mutationKey = ['verifyAdmin'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -165,7 +459,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyAdmin>>, {data: BodyType<AdminCredentials>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyAdmin>>, {data: BodyType<AdminVerify>}> = (props) => {
           const {data} = props ?? {};
 
           return  verifyAdmin(data,requestOptions)
@@ -179,18 +473,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type VerifyAdminMutationResult = NonNullable<Awaited<ReturnType<typeof verifyAdmin>>>
-    export type VerifyAdminMutationBody = BodyType<AdminCredentials>
+    export type VerifyAdminMutationBody = BodyType<AdminVerify>
     export type VerifyAdminMutationError = ErrorType<unknown>
 
     /**
- * @summary Verify admin password
+ * @summary Verify admin password and optional TOTP code
  */
 export const useVerifyAdmin = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdmin>>, TError,{data: BodyType<AdminCredentials>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdmin>>, TError,{data: BodyType<AdminVerify>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof verifyAdmin>>,
         TError,
-        {data: BodyType<AdminCredentials>},
+        {data: BodyType<AdminVerify>},
         TContext
       > => {
       return useMutation(getVerifyAdminMutationOptions(options));

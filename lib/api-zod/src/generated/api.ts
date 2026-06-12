@@ -17,14 +17,68 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Verify admin password
+ * @summary Check if TOTP 2FA is configured
  */
-export const VerifyAdminBody = zod.object({
+export const GetTotpStatusResponse = zod.object({
+  "configured": zod.boolean()
+})
+
+
+/**
+ * @summary Generate TOTP secret and QR code
+ */
+export const SetupTotpBody = zod.object({
   "password": zod.string()
 })
 
+export const SetupTotpResponse = zod.object({
+  "qrDataUrl": zod.string(),
+  "secret": zod.string(),
+  "alreadyConfirmed": zod.boolean()
+})
+
+
+/**
+ * @summary Confirm TOTP setup with a valid code
+ */
+export const ConfirmTotpBody = zod.object({
+  "password": zod.string(),
+  "totpCode": zod.string()
+})
+
+export const ConfirmTotpResponse = zod.object({
+  "ok": zod.boolean(),
+  "reason": zod.string().optional(),
+  "totpEnabled": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Reset TOTP (requires password)
+ */
+export const ResetTotpBody = zod.object({
+  "password": zod.string()
+})
+
+export const ResetTotpResponse = zod.object({
+  "ok": zod.boolean(),
+  "reason": zod.string().optional(),
+  "totpEnabled": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Verify admin password and optional TOTP code
+ */
+export const VerifyAdminBody = zod.object({
+  "password": zod.string(),
+  "totpCode": zod.string().optional()
+})
+
 export const VerifyAdminResponse = zod.object({
-  "ok": zod.boolean()
+  "ok": zod.boolean(),
+  "reason": zod.string().optional(),
+  "totpEnabled": zod.boolean().optional()
 })
 
 

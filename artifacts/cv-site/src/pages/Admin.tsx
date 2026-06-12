@@ -4,38 +4,264 @@ import { useGetProfile, useListArticles, useListExperience, useListEducation } f
 import { adminHeaders } from "../lib/api";
 import { useToast } from "@/hooks/use-toast";
 
+type LoginStep = "password" | "totp" | "setup-scan" | "setup-confirm";
+
+interface TotpSetupData {
+  qrDataUrl: string;
+  secret: string;
+}
+
+function LoginBox({ onAuthenticated }: { onAuthenticated: (pw: string) => void }) {
+  const [step, setStep] = useState<LoginStep>("password");
+  const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [setupData, setSetupData] = useState<TotpSetupData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [ipBlocked, setIpBlocked] = useState(false);
+  const { toast } = useToast();
+
+  const post = async (path: string, body: object): Promise<{ status: number; data: any }> => {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 403) return { status: 403, data: null };
+    const data = await res.json();
+    return { status: res.status, data };
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { status, data } = await post("/api/auth/verify", { password });
+      if (status === 403) { setIpBlocked(true); return; }
+      if (!data.ok && data.reason === "invalid_password") {
+        toast({ title: "Incorrect password", variant: "destructive" });
+        return;
+      }
+      if (!data.ok && data.reason === "totp_required") {
+        setStep("totp");
+        return;
+      }
+      if (data.ok && !data.totpEnabled) {
+        const { status: s2, data: setup } = await post("/api/auth/setup-totp", { password });
+        if (s2 === 403) { setIpBlocked(true); return; }
+        if (s2 !== 200) { toast({ title: "Setup failed", variant: "destructive" }); return; }
+        setSetupData({ qrDataUrl: setup.qrDataUrl, secret: setup.secret });
+        setStep("setup-scan");
+        return;
+      }
+      if (data.ok) {
+        onAuthenticated(password);
+        toast({ title: "Logged in" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTotpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { status, data } = await post("/api/auth/verify", { password, totpCode });
+      if (status === 403) { setIpBlocked(true); return; }
+      if (!data.ok && data.reason === "invalid_totp") {
+        toast({ title: "Invalid code — check your authenticator app", variant: "destructive" });
+        setTotpCode("");
+        return;
+      }
+      if (data.ok) {
+        onAuthenticated(password);
+        toast({ title: "Logged in" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetupConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { status, data } = await post("/api/auth/confirm-totp", { password, totpCode });
+      if (status === 403) { setIpBlocked(true); return; }
+      if (status !== 200 || !data.ok) {
+        toast({ title: "Invalid code — try again", variant: "destructive" });
+        setTotpCode("");
+        return;
+      }
+      onAuthenticated(password);
+      toast({ title: "2FA set up — you're logged in" });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (ipBlocked) {
+    return (
+      <div className="min-h-[100dvh] bg-background text-foreground p-4 flex items-center justify-center font-mono">
+        <div className="max-w-md w-full p-8 border border-destructive/50 bg-card shadow-xl space-y-4 text-center">
+          <div className="text-4xl">⛔</div>
+          <h1 className="text-xl font-sans font-bold text-destructive">Access Denied</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Your IP address is not on the admin allowlist.<br />
+            Connect via your configured VPN or update <code className="text-primary">ADMIN_ALLOWED_IPS</code> in your environment secrets.
+          </p>
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground block pt-2">← Back to site</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "setup-scan" && setupData) {
+    return (
+      <div className="min-h-[100dvh] bg-background text-foreground p-4 flex items-center justify-center font-mono">
+        <div className="max-w-md w-full p-8 border border-border bg-card shadow-xl space-y-6">
+          <div>
+            <h1 className="text-2xl font-sans font-bold text-primary">Set Up 2FA</h1>
+            <p className="text-sm text-muted-foreground mt-1">Step 1 of 2 — scan with your authenticator app</p>
+          </div>
+          <div className="flex flex-col items-center gap-4">
+            <img src={setupData.qrDataUrl} alt="TOTP QR Code" className="w-48 h-48 border border-border" />
+            <div className="w-full">
+              <p className="text-xs text-muted-foreground mb-1">Or enter this key manually:</p>
+              <code className="block text-xs bg-muted px-3 py-2 break-all text-primary">{setupData.secret}</code>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Use Google Authenticator, Authy, 1Password, or any TOTP app.</p>
+          <button
+            onClick={() => { setTotpCode(""); setStep("setup-confirm"); }}
+            className="w-full bg-primary text-primary-foreground font-medium p-2 rounded hover:bg-primary/90 transition-colors"
+          >
+            I've scanned it →
+          </button>
+          <div className="text-center">
+            <button onClick={() => setStep("password")} className="text-xs text-muted-foreground hover:text-foreground">← Back</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "setup-confirm") {
+    return (
+      <div className="min-h-[100dvh] bg-background text-foreground p-4 flex items-center justify-center font-mono">
+        <div className="max-w-md w-full p-8 border border-border bg-card shadow-xl space-y-6">
+          <div>
+            <h1 className="text-2xl font-sans font-bold text-primary">Set Up 2FA</h1>
+            <p className="text-sm text-muted-foreground mt-1">Step 2 of 2 — confirm with a code</p>
+          </div>
+          <form onSubmit={handleSetupConfirm} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground block">6-digit code from your app</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="w-full bg-input border border-border p-2 text-foreground rounded focus:outline-none focus:ring-1 focus:ring-primary text-center tracking-widest text-lg"
+                autoFocus
+              />
+            </div>
+            <button type="submit" disabled={loading || totpCode.length !== 6} className="w-full bg-primary text-primary-foreground font-medium p-2 rounded hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {loading ? "Verifying…" : "Confirm & Log In"}
+            </button>
+          </form>
+          <div className="text-center">
+            <button onClick={() => setStep("setup-scan")} className="text-xs text-muted-foreground hover:text-foreground">← Back to QR code</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "totp") {
+    return (
+      <div className="min-h-[100dvh] bg-background text-foreground p-4 flex items-center justify-center font-mono">
+        <div className="max-w-md w-full p-8 border border-border bg-card shadow-xl space-y-6">
+          <div>
+            <h1 className="text-2xl font-sans font-bold text-primary">Admin Portal</h1>
+            <p className="text-sm text-muted-foreground mt-1">Enter your authenticator code</p>
+          </div>
+          <form onSubmit={handleTotpSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground block">6-digit code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="w-full bg-input border border-border p-2 text-foreground rounded focus:outline-none focus:ring-1 focus:ring-primary text-center tracking-widest text-lg"
+                autoFocus
+                data-testid="input-totp"
+              />
+            </div>
+            <button type="submit" disabled={loading || totpCode.length !== 6} className="w-full bg-primary text-primary-foreground font-medium p-2 rounded hover:bg-primary/90 transition-colors disabled:opacity-50" data-testid="button-totp-submit">
+              {loading ? "Verifying…" : "Log In"}
+            </button>
+          </form>
+          <div className="text-center">
+            <button onClick={() => { setStep("password"); setTotpCode(""); }} className="text-xs text-muted-foreground hover:text-foreground">← Back</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[100dvh] bg-background text-foreground p-4 flex items-center justify-center font-mono">
+      <div className="max-w-md w-full p-8 border border-border bg-card shadow-xl space-y-6">
+        <h1 className="text-2xl font-sans font-bold text-primary">Admin Portal</h1>
+        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground block">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className="w-full bg-input border border-border p-2 text-foreground rounded focus:outline-none focus:ring-1 focus:ring-primary"
+              data-testid="input-password"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground font-medium p-2 rounded hover:bg-primary/90 transition-colors disabled:opacity-50" data-testid="button-login">
+            {loading ? "Checking…" : "Continue →"}
+          </button>
+        </form>
+        <div className="pt-4 text-center">
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">← Back to site</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
   const [activeTab, setActiveTab] = useState("profile");
   const { toast } = useToast();
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
-    if (token) {
-      setIsAuthenticated(true);
-    }
+    if (token) setIsAuthenticated(true);
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        localStorage.setItem("adminToken", password);
-        setIsAuthenticated(true);
-        toast({ title: "Logged in successfully" });
-      } else {
-        toast({ title: "Invalid password", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Error verifying password", variant: "destructive" });
-    }
+  const handleAuthenticated = (pw: string) => {
+    localStorage.setItem("adminToken", pw);
+    setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
@@ -45,31 +271,7 @@ export default function Admin() {
   };
 
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-[100dvh] bg-background text-foreground p-4 flex items-center justify-center font-mono">
-        <div className="max-w-md w-full p-8 border border-border bg-card shadow-xl space-y-6">
-          <h1 className="text-2xl font-sans font-bold text-primary">Admin Portal</h1>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground block">Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-input border border-border p-2 text-foreground rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                data-testid="input-password"
-              />
-            </div>
-            <button type="submit" className="w-full bg-primary text-primary-foreground font-medium p-2 rounded hover:bg-primary/90 transition-colors" data-testid="button-login">
-              Enter
-            </button>
-          </form>
-          <div className="pt-4 text-center">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">← Back to site</Link>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoginBox onAuthenticated={handleAuthenticated} />;
   }
 
   return (

@@ -13,8 +13,30 @@ export interface AdminCredentials {
   password: string;
 }
 
+export interface AdminVerify {
+  password: string;
+  totpCode?: string;
+}
+
+export interface TotpStatus {
+  configured: boolean;
+}
+
+export interface TotpSetup {
+  qrDataUrl: string;
+  secret: string;
+  alreadyConfirmed: boolean;
+}
+
+export interface TotpConfirm {
+  password: string;
+  totpCode: string;
+}
+
 export interface AuthResult {
   ok: boolean;
+  reason?: string;
+  totpEnabled?: boolean;
 }
 
 export interface ProfileData {

@@ -36,17 +36,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  /auth/verify:
-    post:
-      operationId: verifyAdmin
+  /auth/totp-status:
+    get:
+      operationId: getTotpStatus
       tags: [auth]
-      summary: Verify admin password
+      summary: Check if TOTP 2FA is configured
+      responses:
+        "200":
+          description: TOTP status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpStatus"
+
+  /auth/setup-totp:
+    post:
+      operationId: setupTotp
+      tags: [auth]
+      summary: Generate TOTP secret and QR code
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/AdminCredentials"
+      responses:
+        "200":
+          description: QR code and secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpSetup"
+        "401":
+          description: Unauthorized
+
+  /auth/confirm-totp:
+    post:
+      operationId: confirmTotp
+      tags: [auth]
+      summary: Confirm TOTP setup with a valid code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TotpConfirm"
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          description: Invalid code
+        "401":
+          description: Unauthorized
+
+  /auth/reset-totp:
+    post:
+      operationId: resetTotp
+      tags: [auth]
+      summary: Reset TOTP (requires password)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCredentials"
+      responses:
+        "200":
+          description: Reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Unauthorized
+
+  /auth/verify:
+    post:
+      operationId: verifyAdmin
+      tags: [auth]
+      summary: Verify admin password and optional TOTP code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminVerify"
       responses:
         "200":
           description: Verification result
@@ -435,10 +513,57 @@ components:
       required:
         - password
 
+    AdminVerify:
+      type: object
+      properties:
+        password:
+          type: string
+        totpCode:
+          type: string
+      required:
+        - password
+
+    TotpStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+      required:
+        - configured
+
+    TotpSetup:
+      type: object
+      properties:
+        qrDataUrl:
+          type: string
+        secret:
+          type: string
+        alreadyConfirmed:
+          type: boolean
+      required:
+        - qrDataUrl
+        - secret
+        - alreadyConfirmed
+
+    TotpConfirm:
+      type: object
+      properties:
+        password:
+          type: string
+        totpCode:
+          type: string
+      required:
+        - password
+        - totpCode
+
     AuthResult:
       type: object
       properties:
         ok:
+          type: boolean
+        reason:
+          type: string
+        totpEnabled:
           type: boolean
       required:
         - ok

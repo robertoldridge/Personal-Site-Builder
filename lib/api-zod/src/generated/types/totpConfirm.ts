@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AuthResult {
-  ok: boolean;
-  reason?: string;
-  totpEnabled?: boolean;
+export interface TotpConfirm {
+  password: string;
+  totpCode: string;
 }

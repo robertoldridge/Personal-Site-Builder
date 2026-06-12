@@ -13,3 +13,27 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) {
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(",")[0];
+    return first.trim();
+  }
+  return req.socket?.remoteAddress ?? req.ip ?? "";
+}
+
+export function ipAllowlist(req: Request, res: Response, next: NextFunction) {
+  const allowedIps = process.env.ADMIN_ALLOWED_IPS;
+  if (!allowedIps || allowedIps.trim() === "") {
+    next();
+    return;
+  }
+  const allowed = allowedIps.split(",").map((ip) => ip.trim()).filter(Boolean);
+  const clientIp = getClientIp(req);
+  if (allowed.some((ip) => clientIp === ip || clientIp.endsWith(`:${ip}`) || clientIp === `::ffff:${ip}`)) {
+    next();
+    return;
+  }
+  res.status(403).json({ error: "Access denied: your IP is not on the allowlist" });
+}

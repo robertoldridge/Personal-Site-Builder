@@ -7,6 +7,7 @@
  */
 
 export * from './adminCredentials';
+export * from './adminVerify';
 export * from './articleData';
 export * from './articleInput';
 export * from './authResult';
@@ -20,3 +21,6 @@ export * from './profileData';
 export * from './profileInput';
 export * from './projectData';
 export * from './projectInput';
+export * from './totpConfirm';
+export * from './totpSetup';
+export * from './totpStatus';
